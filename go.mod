@@ -8,7 +8,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/kubernetes-sigs/sig-storage-lib-external-provisioner v2.1.0+incompatible
-	github.com/magiconair/properties v1.8.4
+	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/ogre0403/iscsi-target-api v0.0.0-20210111125031-9bf22d5ad1ff
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect

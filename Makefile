@@ -1,4 +1,4 @@
-# Copyright 2017 The Kubernetes Authors.
+# Copyright 2016 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,55 +12,66 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+COMMIT_HASH = $(shell git rev-parse --short HEAD)
+BRANCH_NAME = $(shell git rev-parse --abbrev-ref HEAD)
+RET = $(shell git describe --contains $(COMMIT_HASH) 1>&2 2> /dev/null; echo $$?)
+USER = $(shell whoami)
+IS_DIRTY_CONDITION = $(shell git diff-index --name-status HEAD | wc -l)
+
+ifeq ($(strip $(IS_DIRTY_CONDITION)), 0)
+	# if clean,  IS_DIRTY tag is not required
+	IS_DIRTY = $(shell echo "")
+else
+	# add dirty tag if repo is modified
+	IS_DIRTY = $(shell echo "-dirty")
+endif
+
+# Image Tag rule
+# 1. if repo in non-master branch, use branch name as image tag
+# 2. if repo in a master branch, but there is no tag, use <username>-<commit-hash>
+# 2. if repo in a master branch, and there is tag, use tag
+ifeq ($(BRANCH_NAME), master)
+	ifeq ($(RET),0)
+		TAG = $(shell git describe --contains $(COMMIT_HASH))$(IS_DIRTY)
+	else
+		TAG = $(USER)-$(COMMIT_HASH)$(IS_DIRTY)
+	endif
+else
+	TAG = $(BRANCH_NAME)$(IS_DIRTY)
+endif
+
+
 ifeq ($(REGISTRY),)
 	REGISTRY = ogre0403/
 endif
-ifeq ($(VERSION),)
-	VERSION = latest
-endif
-IMAGE = $(REGISTRY)iscsi-controller:$(VERSION)
-MUTABLE_IMAGE = $(REGISTRY)iscsi-controller:latest
 
-#all build:
-#	@mkdir -p .go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd/vendor
-#	@mkdir -p .go/bin
-#	@mkdir -p .go/stdlib
-#	docker run \
-#		--rm  \
-#		-e "CGO_ENABLED=0" \
-#		-u $$(id -u):$$(id -g) \
-#		-v $$(pwd)/.go:/go \
-#		-v $$(pwd):/go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
-#		-v "$${PWD%/*/*}/vendor":/go/src/github.com/kubernetes-incubator/external-storage/vendor \
-#		-v $$(pwd):/go/bin \
-#		-v $$(pwd)/.go/stdlib:/usr/local/go/pkg/linux_amd64_asdf \
-#		-w /go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
-#		golang:1.11.1-alpine \
-#		go install -installsuffix "asdf" .
-#.PHONY: all build
+PROJ_NAME = iscsi-provisioner
+IMAGE = $(REGISTRY)$(PROJ_NAME):$(TAG)
 
+build:
+	rm -rf bin/${PROJ_NAME}
+	go mod vendor
+	go build -mod=vendor  \
+	-o bin/${PROJ_NAME}
 
+run:
+	bin/iscsi-provisioner start \
+	--kubeconfig=/Users/ogre0403/.kube/config \
+	--provisioner-name=iscsi-targetd \
+	--targetd-address=140.110.30.57 \
+	--log-level=debug
 
+build-in-docker:
+	rm -rf bin/${PROJ_NAME}
+	CGO_ENABLED=0 GOOS=linux \
+	go build -mod=vendor \
+	-a -ldflags '-extldflags "-static"' \
+	-o bin/${PROJ_NAME}
 
-container: build quick-container
-.PHONY: container
+build-img:
+	docker build -t $(IMAGE) -f ./Dockerfile .
 
-quick-container:
-	docker build -t $(MUTABLE_IMAGE) .
-	docker tag $(MUTABLE_IMAGE) $(IMAGE)
-.PHONY: quick-container
-
-push: container
-	docker push $(IMAGE)
-	docker push $(MUTABLE_IMAGE)
-.PHONY: push
-
-test:
-	go test `go list ./... | grep -v 'vendor'`
-.PHONY: test
 
 clean:
-	rm -rf .go
-	rm -f targetd
-	rm -f iscsi-controller
-.PHONY: clean
+	rm -rf bin/
+
