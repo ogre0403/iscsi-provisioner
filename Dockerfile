@@ -12,4 +12,4 @@ RUN make build-in-docker
 
 FROM alpine:3.7
 COPY --from=build /iscsi-provisioner/bin/iscsi-provisioner /
-CMD ["/iscsi-controller"]
+CMD ["/iscsi-controller","-v","2", "logtostderr","true"]

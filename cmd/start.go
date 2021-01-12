@@ -17,18 +17,21 @@ limitations under the License.
 package cmd
 
 import (
+	goflag "flag"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/ogre0403/iscsi-provisioner/provisioner"
-	"github.com/sirupsen/logrus"
+
+	log "github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	flag "github.com/spf13/pflag"
+
 )
 
-var log = logrus.New()
 
 // start-controllerCmd represents the start-controller command
 var startcontrollerCmd = &cobra.Command{
@@ -36,14 +39,14 @@ var startcontrollerCmd = &cobra.Command{
 	Short: "Start an iscsi dynamic provisioner",
 	Long:  `Start an iscsi dynamic provisioner`,
 	Run: func(cmd *cobra.Command, args []string) {
-		initLog()
-		log.Debugln("start called")
+		goflag.Parse()
+		log.V(2).Infof("start called")
 		var config *rest.Config
 		var err error
 		master := viper.GetString("master")
 		kubeconfig := viper.GetString("kubeconfig")
 		// creates the in-cluster config
-		log.Debugln("creating in cluster default kube client config")
+		log.V(2).Infof("creating in cluster default kube client config")
 		if master != "" || kubeconfig != "" {
 			config, err = clientcmd.BuildConfigFromFlags(master, kubeconfig)
 		} else {
@@ -52,17 +55,15 @@ var startcontrollerCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.WithFields(logrus.Fields{
-			"config-host": config.Host,
-		}).Debugln("kube client config created")
+		log.V(2).Infof("kube client config created")
 
 		// creates the clientset
-		log.Debugln("creating kube client set")
+		log.V(2).Infof("creating kube client set")
 		kubernetesClientSet, err := kubernetes.NewForConfig(config)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Debugln("kube client set created")
+		log.V(2).Infof("kube client set created")
 
 		// The controller needs to know what the server version is because out-of-tree
 		// provisioners aren't officially supported until 1.5
@@ -71,14 +72,12 @@ var startcontrollerCmd = &cobra.Command{
 			log.Fatalf("Error getting server version: %v", err)
 		}
 
-		//url := fmt.Sprintf("%s://%s:%s@%s:%d/targetrpc", viper.GetString("targetd-scheme"), viper.GetString("targetd-username"), viper.GetString("targetd-password"), viper.GetString("targetd-address"), viper.GetInt("targetd-port"))
-
 		addr := viper.GetString("targetd-address")
 		port := viper.GetInt("targetd-port")
-		log.Debugf("target api addr: %s:%d", addr, port)
+		log.V(2).Infof("target api addr: %s:%d", addr, port)
 
 		iscsiProvisioner := provisioner.NewiscsiProvisioner(addr, port)
-		log.Debugln("iscsi provisioner created")
+		log.V(2).Infof("iscsi provisioner created")
 
 		pc := controller.NewProvisionController(kubernetesClientSet, viper.GetString("provisioner-name"), iscsiProvisioner, serverVersion.GitVersion, controller.Threadiness(1))
 		controller.ResyncPeriod(viper.GetDuration("resync-period"))
@@ -88,13 +87,15 @@ var startcontrollerCmd = &cobra.Command{
 		controller.LeaseDuration(viper.GetDuration("lease-period"))
 		controller.RenewDeadline(viper.GetDuration("renew-deadline"))
 		controller.RetryPeriod(viper.GetDuration("retry-period"))
-		log.Debugln("iscsi controller created, running forever...")
+		log.V(2).Infof("iscsi controller created, running forever...")
 		pc.Run(wait.NeverStop)
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(startcontrollerCmd)
+	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
+
 	startcontrollerCmd.Flags().String("provisioner-name", "iscsi-targetd", "name of this provisioner, must match what is passed in the storage class annotation")
 	viper.BindPFlag("provisioner-name", startcontrollerCmd.Flags().Lookup("provisioner-name"))
 	startcontrollerCmd.Flags().Duration("resync-period", controller.DefaultResyncPeriod, "how often to poll the master API for updates")
@@ -140,10 +141,10 @@ func init() {
 
 }
 
-func initLog() {
-	var err error
-	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
+//func initLog() {
+//	var err error
+//	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
+//	if err != nil {
+//		log.Fatalln(err)
+//	}
+//}

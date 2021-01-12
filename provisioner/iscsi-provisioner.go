@@ -19,6 +19,7 @@ package provisioner
 import (
 	"errors"
 	"fmt"
+	log "github.com/golang/glog"
 	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
 	"github.com/ogre0403/iscsi-target-api/pkg/client"
 	"strconv"
@@ -28,13 +29,12 @@ import (
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/util"
 	"github.com/powerman/rpc-codec/jsonrpc2"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var log = logrus.New()
+//var log = logrus.New()
 
 type chapSessionCredentials struct {
 	InUser      string `properties:"node.session.auth.username"`
@@ -80,8 +80,6 @@ type export struct {
 // NewiscsiProvisioner creates new iscsi provisioner
 func NewiscsiProvisioner(addr string, port int) controller.Provisioner {
 
-	initLog()
-
 	return &iscsiProvisioner{
 		iscsiClient: client.NewClient(addr, port),
 	}
@@ -100,7 +98,7 @@ func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.Pers
 	if !util.AccessModesContainedInAll(p.getAccessModes(), options.PVC.Spec.AccessModes) {
 		return nil, fmt.Errorf("invalid AccessModes %v: only AccessModes %v are supported", options.PVC.Spec.AccessModes, p.getAccessModes())
 	}
-	log.Debugln("new provision request received for pvc: ", options.PVName)
+	log.V(2).Infof("new provision request received for pvc: ", options.PVName)
 	iqn, err := p.createVolume(options)
 	if err != nil {
 		log.Errorf("Create volume fail: %s", err.Error())
@@ -189,34 +187,34 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 // by the given PV.
 func (p *iscsiProvisioner) _Delete(volume *v1.PersistentVolume) error {
 	//vol from the annotation
-	log.Debugln("volume deletion request received: ", volume.GetName())
+	log.V(2).Infof("volume deletion request received: ", volume.GetName())
 	for _, initiator := range strings.Split(volume.Annotations["initiators"], ",") {
-		log.Debugln("removing iscsi export: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
+		log.V(2).Infof("removing iscsi export: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
 		err := p.exportDestroy(volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
 		if err != nil {
-			log.Warnln(err)
+			log.Error(err)
 			return err
 		}
-		log.Debugln("iscsi export removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
+		log.V(2).Infof("iscsi export removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
 	}
-	log.Debugln("removing logical volume : ", volume.Annotations["volume_name"], volume.Annotations["pool"])
+	log.V(2).Infof("removing logical volume : ", volume.Annotations["volume_name"], volume.Annotations["pool"])
 	err := p.volDestroy(volume.Annotations["volume_name"], volume.Annotations["pool"])
 	if err != nil {
-		log.Warnln(err)
+		log.Error(err)
 		return err
 	}
-	log.Debugln("logical volume removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"])
-	log.Debugln("volume deletion request completed: ", volume.GetName())
+	log.V(2).Infof("logical volume removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"])
+	log.V(2).Infof("volume deletion request completed: ", volume.GetName())
 	return nil
 }
 
-func initLog() {
-	var err error
-	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
+//func initLog() {
+//	var err error
+//	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
+//	if err != nil {
+//		log.Fatalln(err)
+//	}
+//}
 
 func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (string, error) {
 
@@ -241,7 +239,7 @@ func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (strin
 	if err := p.iscsiClient.AttachLun(lun); err != nil {
 		return "", err
 	}
-	log.Debugln("volume created with target and size: ", lun.TargetIQN, v.Size)
+	log.V(2).Infof("volume created with target and size: ", lun.TargetIQN, v.Size)
 
 	return target, nil
 }
@@ -271,7 +269,7 @@ func (p *iscsiProvisioner) volDestroy(vol string, pool string) error {
 	client, err := p.getConnection()
 	defer client.Close()
 	if err != nil {
-		log.Warnln(err)
+		log.Error(err)
 		return err
 	}
 	args := volDestroyArgs{
@@ -287,7 +285,7 @@ func (p *iscsiProvisioner) exportDestroy(vol string, pool string, initiator stri
 	client, err := p.getConnection()
 	defer client.Close()
 	if err != nil {
-		log.Warnln(err)
+		log.Error(err)
 		return err
 	}
 	args := exportDestroyArgs{
@@ -306,7 +304,7 @@ func (p *iscsiProvisioner) setInitiatorAuth(initiator string, inUser string, inP
 	client, err := p.getConnection()
 	defer client.Close()
 	if err != nil {
-		log.Warnln(err)
+		log.Error(err)
 		return err
 	}
 
@@ -324,14 +322,14 @@ func (p *iscsiProvisioner) setInitiatorAuth(initiator string, inUser string, inP
 }
 
 func (p *iscsiProvisioner) getConnection() (*jsonrpc2.Client, error) {
-	log.Debugln("opening connection to targetd: ", p.targetdURL)
+	log.V(2).Infof("opening connection to targetd: ", p.targetdURL)
 
 	client := jsonrpc2.NewHTTPClient(p.targetdURL)
 	if client == nil {
-		log.Warnln("error creating the connection to targetd", p.targetdURL)
+		log.Error("error creating the connection to targetd", p.targetdURL)
 		return nil, errors.New("error creating the connection to targetd")
 	}
-	log.Debugln("targetd client created")
+	log.V(2).Infof("targetd client created")
 	return client, nil
 }
 
