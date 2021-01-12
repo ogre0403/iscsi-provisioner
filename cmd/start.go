@@ -17,10 +17,8 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
-	"github.com/ogre0403/iscsi-provisioner/provisioner"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
+	"github.com/ogre0403/iscsi-provisioner/provisioner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -73,11 +71,13 @@ var startcontrollerCmd = &cobra.Command{
 			log.Fatalf("Error getting server version: %v", err)
 		}
 
-		url := fmt.Sprintf("%s://%s:%s@%s:%d/targetrpc", viper.GetString("targetd-scheme"), viper.GetString("targetd-username"), viper.GetString("targetd-password"), viper.GetString("targetd-address"), viper.GetInt("targetd-port"))
+		//url := fmt.Sprintf("%s://%s:%s@%s:%d/targetrpc", viper.GetString("targetd-scheme"), viper.GetString("targetd-username"), viper.GetString("targetd-password"), viper.GetString("targetd-address"), viper.GetInt("targetd-port"))
 
-		log.Debugln("targed URL", url)
+		addr := viper.GetString("targetd-address")
+		port := viper.GetInt("targetd-port")
+		log.Debugf("target api addr: %s:%d", addr, port)
 
-		iscsiProvisioner := provisioner.NewiscsiProvisioner(url)
+		iscsiProvisioner := provisioner.NewiscsiProvisioner(addr, port)
 		log.Debugln("iscsi provisioner created")
 
 		pc := controller.NewProvisionController(kubernetesClientSet, viper.GetString("provisioner-name"), iscsiProvisioner, serverVersion.GitVersion, controller.Threadiness(1))
@@ -117,7 +117,7 @@ func init() {
 	viper.BindPFlag("targetd-password", startcontrollerCmd.Flags().Lookup("targetd-password"))
 	startcontrollerCmd.Flags().String("targetd-address", "localhost", "ip or dns of the targetd server")
 	viper.BindPFlag("targetd-address", startcontrollerCmd.Flags().Lookup("targetd-address"))
-	startcontrollerCmd.Flags().Int("targetd-port", 18700, "port on which targetd is listening")
+	startcontrollerCmd.Flags().Int("targetd-port", 8811, "port on which targetd is listening")
 	viper.BindPFlag("targetd-port", startcontrollerCmd.Flags().Lookup("targetd-port"))
 	startcontrollerCmd.Flags().String("default-fs", "xfs", "filesystem to use when not specified")
 	viper.BindPFlag("default-fs", startcontrollerCmd.Flags().Lookup("default-fs"))

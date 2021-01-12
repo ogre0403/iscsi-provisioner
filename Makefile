@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ifeq ($(REGISTRY),)
-	REGISTRY = quay.io/external_storage/
+	REGISTRY = ogre0403/
 endif
 ifeq ($(VERSION),)
 	VERSION = latest
@@ -21,23 +21,26 @@ endif
 IMAGE = $(REGISTRY)iscsi-controller:$(VERSION)
 MUTABLE_IMAGE = $(REGISTRY)iscsi-controller:latest
 
-all build:
-	@mkdir -p .go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd/vendor
-	@mkdir -p .go/bin
-	@mkdir -p .go/stdlib
-	docker run \
-		--rm  \
-		-e "CGO_ENABLED=0" \
-		-u $$(id -u):$$(id -g) \
-		-v $$(pwd)/.go:/go \
-		-v $$(pwd):/go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
-		-v "$${PWD%/*/*}/vendor":/go/src/github.com/kubernetes-incubator/external-storage/vendor \
-		-v $$(pwd):/go/bin \
-		-v $$(pwd)/.go/stdlib:/usr/local/go/pkg/linux_amd64_asdf \
-		-w /go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
-		golang:1.11.1-alpine \
-		go install -installsuffix "asdf" .
-.PHONY: all build
+#all build:
+#	@mkdir -p .go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd/vendor
+#	@mkdir -p .go/bin
+#	@mkdir -p .go/stdlib
+#	docker run \
+#		--rm  \
+#		-e "CGO_ENABLED=0" \
+#		-u $$(id -u):$$(id -g) \
+#		-v $$(pwd)/.go:/go \
+#		-v $$(pwd):/go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
+#		-v "$${PWD%/*/*}/vendor":/go/src/github.com/kubernetes-incubator/external-storage/vendor \
+#		-v $$(pwd):/go/bin \
+#		-v $$(pwd)/.go/stdlib:/usr/local/go/pkg/linux_amd64_asdf \
+#		-w /go/src/github.com/kubernetes-incubator/external-storage/iscsi/targetd \
+#		golang:1.11.1-alpine \
+#		go install -installsuffix "asdf" .
+#.PHONY: all build
+
+
+
 
 container: build quick-container
 .PHONY: container
