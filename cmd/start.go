@@ -23,15 +23,13 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/spf13/cobra"
+	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	flag "github.com/spf13/pflag"
-
 )
-
 
 // start-controllerCmd represents the start-controller command
 var startcontrollerCmd = &cobra.Command{
@@ -140,11 +138,3 @@ func init() {
 	// start-controllerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }
-
-//func initLog() {
-//	var err error
-//	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
-//	if err != nil {
-//		log.Fatalln(err)
-//	}
-//}

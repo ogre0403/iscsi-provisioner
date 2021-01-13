@@ -17,7 +17,6 @@ limitations under the License.
 package provisioner
 
 import (
-	"errors"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
@@ -28,53 +27,13 @@ import (
 
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/util"
-	"github.com/powerman/rpc-codec/jsonrpc2"
 	"github.com/spf13/viper"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//var log = logrus.New()
-
-type chapSessionCredentials struct {
-	InUser      string `properties:"node.session.auth.username"`
-	InPassword  string `properties:"node.session.auth.password"`
-	OutUser     string `properties:"node.session.auth.username_in"`
-	OutPassword string `properties:"node.session.auth.password_in"`
-}
-
-//initiator_set_auth(initiator_wwn, in_user, in_pass, out_user, out_pass)
-type initiatorSetAuthArgs struct {
-	InitiatorWwn string `json:"initiator_wwn"`
-	InUser       string `json:"in_user"`
-	InPassword   string `json:"in_pass"`
-	OutUser      string `json:"out_user"`
-	OutPassword  string `json:"out_pass"`
-}
-
-type volDestroyArgs struct {
-	Pool string `json:"pool"`
-	Name string `json:"name"`
-}
-
-type exportDestroyArgs struct {
-	Pool         string `json:"pool"`
-	Vol          string `json:"vol"`
-	InitiatorWwn string `json:"initiator_wwn"`
-}
-
 type iscsiProvisioner struct {
-	targetdURL  string
 	iscsiClient *client.Client
-}
-
-type export struct {
-	InitiatorWwn string `json:"initiator_wwn"`
-	Lun          int32  `json:"lun"`
-	VolName      string `json:"vol_name"`
-	VolSize      int    `json:"vol_size"`
-	VolUUID      string `json:"vol_uuid"`
-	Pool         string `json:"pool"`
 }
 
 // NewiscsiProvisioner creates new iscsi provisioner
@@ -85,20 +44,12 @@ func NewiscsiProvisioner(addr string, port int) controller.Provisioner {
 	}
 }
 
-// getAccessModes returns access modes iscsi volume supported.
-func (p *iscsiProvisioner) getAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{
-		v1.ReadWriteOnce,
-		v1.ReadOnlyMany,
-	}
-}
-
 // Provision creates a storage asset and returns a PV object representing it.
 func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	if !util.AccessModesContainedInAll(p.getAccessModes(), options.PVC.Spec.AccessModes) {
 		return nil, fmt.Errorf("invalid AccessModes %v: only AccessModes %v are supported", options.PVC.Spec.AccessModes, p.getAccessModes())
 	}
-	log.V(2).Infof("new provision request received for pvc: ", options.PVName)
+	log.V(2).Infof("new provision request received for pvc: %s/%s", options.PVC.Namespace, options.PVC.Name)
 	iqn, err := p.createVolume(options)
 	if err != nil {
 		log.Errorf("Create volume fail: %s", err.Error())
@@ -122,10 +73,10 @@ func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.Pers
 				ISCSI: &v1.ISCSIPersistentVolumeSource{
 					TargetPortal: options.Parameters["targetPortal"],
 					IQN:          iqn,
+					Lun:          1, // todo: support multiple LUNs
+					ReadOnly:     getReadOnly(options.Parameters["readonly"]),
+					FSType:       getFsType(options.Parameters["fsType"]),
 					//ISCSIInterface: options.Parameters["iscsiInterface"],
-					Lun:      1, // todo: support multiple LUNs
-					ReadOnly: getReadOnly(options.Parameters["readonly"]),
-					FSType:   getFsType(options.Parameters["fsType"]),
 					//Portals:           portals, todo multipath
 					//DiscoveryCHAPAuth: getBool(options.Parameters["chapAuthDiscovery"]), // todo: support CHAP
 					//SessionCHAPAuth:   getBool(options.Parameters["chapAuthSession"]), // todo: support CHAP
@@ -137,84 +88,36 @@ func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.Pers
 	return pv, nil
 }
 
-func getReadOnly(readonly string) bool {
-	isReadOnly, err := strconv.ParseBool(readonly)
-	if err != nil {
-		return false
-	}
-	return isReadOnly
-}
-
-func getFsType(fsType string) string {
-	if fsType == "" {
-		return viper.GetString("default-fs")
-	}
-	return fsType
-}
-
-func getSecretRef(discovery bool, session bool, ref *v1.SecretReference) *v1.SecretReference {
-	if discovery || session {
-		return ref
-	}
-	return nil
-}
-
-func getBool(value string) bool {
-	res, err := strconv.ParseBool(value)
-	if err != nil {
-		return false
-	}
-	return res
-
-}
-
+// Delete removes the storage asset that was created by Provision represented by the given PV.
 func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
-	//volume.Spec.PersistentVolumeSource.ISCSI.
-	//volume.
-	//target := &cfg.TargetCfg{
-	//	TargetIQN: fmt.Sprintf("iqn.%s-%s.k8s.%s:%s", "2021", "01", options.PVC.Namespace, options.PVC.Name),
-	//	TargetIQN: fmt.Sprintf("iqn."),
-	//}
-	//
-	//if err := p.iscsiClient.DeleteTarget(target); err != nil {
-	//	return err
-	//}
+	log.V(2).Infof("new volume deletion request received for pv: %s", volume.GetName())
 
-	return nil
-}
-
-// Delete removes the storage asset that was created by Provision represented
-// by the given PV.
-func (p *iscsiProvisioner) _Delete(volume *v1.PersistentVolume) error {
-	//vol from the annotation
-	log.V(2).Infof("volume deletion request received: ", volume.GetName())
-	for _, initiator := range strings.Split(volume.Annotations["initiators"], ",") {
-		log.V(2).Infof("removing iscsi export: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
-		err := p.exportDestroy(volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-		log.V(2).Infof("iscsi export removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"], initiator)
+	target := &cfg.TargetCfg{
+		TargetIQN: volume.Spec.ISCSI.IQN,
 	}
-	log.V(2).Infof("removing logical volume : ", volume.Annotations["volume_name"], volume.Annotations["pool"])
-	err := p.volDestroy(volume.Annotations["volume_name"], volume.Annotations["pool"])
-	if err != nil {
-		log.Error(err)
+	if err := p.iscsiClient.DeleteTarget(target); err != nil {
+		log.Errorf("Delete target %s fail: %s", target.TargetIQN, err.Error())
 		return err
 	}
-	log.V(2).Infof("logical volume removed: ", volume.Annotations["volume_name"], volume.Annotations["pool"])
+	log.V(2).Infof("target %s removed ", target.TargetIQN)
+
+	vol := &cfg.VolumeCfg{
+		Path: volume.Spec.ClaimRef.Namespace,
+		Name: volume.Name,
+	}
+
+	if err := p.iscsiClient.DeleteVolume(vol); err != nil {
+		return err
+	}
+	log.V(2).Infof("volume file %s is %s/%s removed ", vol.Path, vol.Name)
+
 	log.V(2).Infof("volume deletion request completed: ", volume.GetName())
 	return nil
 }
 
-//func initLog() {
-//	var err error
-//	log.Level, err = logrus.ParseLevel(viper.GetString("log-level"))
-//	if err != nil {
-//		log.Fatalln(err)
-//	}
-//}
+func (p *iscsiProvisioner) SupportsBlock() bool {
+	return true
+}
 
 func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (string, error) {
 
@@ -244,95 +147,67 @@ func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (strin
 	return target, nil
 }
 
+// getAccessModes returns access modes iscsi volume supported.
+func (p *iscsiProvisioner) getAccessModes() []v1.PersistentVolumeAccessMode {
+	return []v1.PersistentVolumeAccessMode{
+		v1.ReadWriteOnce,
+		v1.ReadOnlyMany,
+	}
+}
+
+func getReadOnly(readonly string) bool {
+	isReadOnly, err := strconv.ParseBool(readonly)
+	if err != nil {
+		return false
+	}
+	return isReadOnly
+}
+
+func getFsType(fsType string) string {
+	if fsType == "" {
+		return viper.GetString("default-fs")
+	}
+	return fsType
+}
+
 func getSize(options controller.VolumeOptions) int64 {
 	q := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	return q.Value()
 }
 
-func (p *iscsiProvisioner) getVolumeName(options controller.VolumeOptions) string {
-	return options.PVName
+type chapSessionCredentials struct {
+	InUser      string `properties:"node.session.auth.username"`
+	InPassword  string `properties:"node.session.auth.password"`
+	OutUser     string `properties:"node.session.auth.username_in"`
+	OutPassword string `properties:"node.session.auth.password_in"`
 }
 
-func (p *iscsiProvisioner) getVolumeGroup(options controller.VolumeOptions) string {
-	if options.Parameters["volumeGroup"] == "" {
-		return "vg-targetd"
-	}
-	return options.Parameters["volumeGroup"]
+//initiator_set_auth(initiator_wwn, in_user, in_pass, out_user, out_pass)
+type initiatorSetAuthArgs struct {
+	InitiatorWwn string `json:"initiator_wwn"`
+	InUser       string `json:"in_user"`
+	InPassword   string `json:"in_pass"`
+	OutUser      string `json:"out_user"`
+	OutPassword  string `json:"out_pass"`
 }
 
+// Deprecated: aa
 func (p *iscsiProvisioner) getInitiators(options controller.VolumeOptions) []string {
 	return strings.Split(options.Parameters["initiators"], ",")
 }
 
-// volDestroy removes calls vol_destroy targetd API to remove volume.
-func (p *iscsiProvisioner) volDestroy(vol string, pool string) error {
-	client, err := p.getConnection()
-	defer client.Close()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	args := volDestroyArgs{
-		Pool: pool,
-		Name: vol,
-	}
-	err = client.Call("vol_destroy", args, nil)
-	return err
-}
-
-// exportDestroy calls export_destroy targetd API to remove export of volume.
-func (p *iscsiProvisioner) exportDestroy(vol string, pool string, initiator string) error {
-	client, err := p.getConnection()
-	defer client.Close()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	args := exportDestroyArgs{
-		Pool:         pool,
-		Vol:          vol,
-		InitiatorWwn: initiator,
-	}
-	err = client.Call("export_destroy", args, nil)
-	return err
-}
-
-//initiator_set_auth(initiator_wwn, in_user, in_pass, out_user, out_pass)
-
+// Deprecated: aa
 func (p *iscsiProvisioner) setInitiatorAuth(initiator string, inUser string, inPassword string, outUser string, outPassword string) error {
 
-	client, err := p.getConnection()
-	defer client.Close()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
 	//make arguments object
-	args := initiatorSetAuthArgs{
-		InitiatorWwn: initiator,
-		InUser:       inUser,
-		InPassword:   inPassword,
-		OutUser:      outUser,
-		OutPassword:  outPassword,
-	}
+	//args := initiatorSetAuthArgs{
+	//	InitiatorWwn: initiator,
+	//	InUser:       inUser,
+	//	InPassword:   inPassword,
+	//	OutUser:      outUser,
+	//	OutPassword:  outPassword,
+	//}
 	//call remote procedure with args
-	err = client.Call("initiator_set_auth", args, nil)
-	return err
-}
-
-func (p *iscsiProvisioner) getConnection() (*jsonrpc2.Client, error) {
-	log.V(2).Infof("opening connection to targetd: ", p.targetdURL)
-
-	client := jsonrpc2.NewHTTPClient(p.targetdURL)
-	if client == nil {
-		log.Error("error creating the connection to targetd", p.targetdURL)
-		return nil, errors.New("error creating the connection to targetd")
-	}
-	log.V(2).Infof("targetd client created")
-	return client, nil
-}
-
-func (p *iscsiProvisioner) SupportsBlock() bool {
-	return true
+	//err = client.Call("initiator_set_auth", args, nil)
+	return nil
 }

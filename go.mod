@@ -13,7 +13,7 @@ require (
 	github.com/ogre0403/iscsi-target-api v0.0.0-20210111125031-9bf22d5ad1ff
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/powerman/rpc-codec v1.2.2
+	github.com/powerman/rpc-codec v1.2.2 // indirect
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
