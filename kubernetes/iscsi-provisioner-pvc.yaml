@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: myclaim
 spec:
-  storageClassName: iscsi-targetd-vg-targetd
+  storageClassName: iscsi-target-api-sc
   accessModes:
     - ReadWriteOnce
   resources:

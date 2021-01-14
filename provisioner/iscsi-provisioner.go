@@ -96,8 +96,9 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 		TargetIQN: volume.Spec.ISCSI.IQN,
 	}
 	if err := p.iscsiClient.DeleteTarget(target); err != nil {
-		log.Errorf("Delete target %s fail: %s", target.TargetIQN, err.Error())
-		return err
+		log.Warningf("Delete target %s fail: %s", target.TargetIQN, err.Error())
+		//todo: fix delete pv hang when return err
+		return nil
 	}
 	log.V(2).Infof("target %s removed ", target.TargetIQN)
 
@@ -107,11 +108,13 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 	}
 
 	if err := p.iscsiClient.DeleteVolume(vol); err != nil {
-		return err
+		log.Warningf("Remove volume %s/%s fail: %s", vol.Path, vol.Name, err.Error())
+		//todo: fix delete pv hang when return err
+		return nil
 	}
-	log.V(2).Infof("volume file %s is %s/%s removed ", vol.Path, vol.Name)
+	log.V(2).Infof("volume file <VOLUME_IMAGE_ROOT>/%s/%s is removed ", vol.Path, vol.Name)
 
-	log.V(2).Infof("volume deletion request completed: ", volume.GetName())
+	log.V(2).Infof("volume %s deletion request completed: ", volume.GetName())
 	return nil
 }
 
@@ -142,7 +145,7 @@ func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (strin
 	if err := p.iscsiClient.AttachLun(lun); err != nil {
 		return "", err
 	}
-	log.V(2).Infof("volume created with target and size: ", lun.TargetIQN, v.Size)
+	log.V(2).Infof("volume created with target %s and size %s: ", lun.TargetIQN, v.Size)
 
 	return target, nil
 }

@@ -70,8 +70,8 @@ var startcontrollerCmd = &cobra.Command{
 			log.Fatalf("Error getting server version: %v", err)
 		}
 
-		addr := viper.GetString("targetd-address")
-		port := viper.GetInt("targetd-port")
+		addr := viper.GetString("target-api-address")
+		port := viper.GetInt("target-api-port")
 		log.V(2).Infof("target api addr: %s:%d", addr, port)
 
 		iscsiProvisioner := provisioner.NewiscsiProvisioner(addr, port)
@@ -94,8 +94,24 @@ func init() {
 	RootCmd.AddCommand(startcontrollerCmd)
 	flag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
-	startcontrollerCmd.Flags().String("provisioner-name", "iscsi-targetd", "name of this provisioner, must match what is passed in the storage class annotation")
+	// provisioner flag
+	startcontrollerCmd.Flags().String("provisioner-name", "iscsi-target-api", "name of this provisioner, must match what is passed in the storage class annotation")
 	viper.BindPFlag("provisioner-name", startcontrollerCmd.Flags().Lookup("provisioner-name"))
+	startcontrollerCmd.Flags().String("target-api-address", "localhost", "ip or dns of the target api server")
+	viper.BindPFlag("target-api-address", startcontrollerCmd.Flags().Lookup("target-api-address"))
+	startcontrollerCmd.Flags().Int("target-api-port", 8811, "port on which target api server is listening")
+	viper.BindPFlag("target-api-port", startcontrollerCmd.Flags().Lookup("target-api-port"))
+	startcontrollerCmd.Flags().String("default-fs", "xfs", "filesystem to use when not specified")
+	viper.BindPFlag("default-fs", startcontrollerCmd.Flags().Lookup("default-fs"))
+
+	//startcontrollerCmd.Flags().String("targetd-username", "admin", "username for the targetd connection")
+	//viper.BindPFlag("targetd-username", startcontrollerCmd.Flags().Lookup("targetd-username"))
+	//startcontrollerCmd.Flags().String("targetd-password", "", "password for the targetd connection")
+	//viper.BindPFlag("targetd-password", startcontrollerCmd.Flags().Lookup("targetd-password"))
+	//startcontrollerCmd.Flags().String("session-chap-credential-file-path", "/var/run/secrets/iscsi-provisioner/session-chap-credential.properties", "path where the credential for session chap authentication can be found")
+	//viper.BindPFlag("session-chap-credential-file-path", startcontrollerCmd.Flags().Lookup("session-chap-credential-file-path"))
+
+	// Kubernetes flag
 	startcontrollerCmd.Flags().Duration("resync-period", controller.DefaultResyncPeriod, "how often to poll the master API for updates")
 	viper.BindPFlag("resync-period", startcontrollerCmd.Flags().Lookup("resync-period"))
 	startcontrollerCmd.Flags().Bool("exponential-backoff-on-error", controller.DefaultExponentialBackOffOnError, "exponential-backoff-on-error doubles the retry-period everytime there is an error")
@@ -108,24 +124,11 @@ func init() {
 	viper.BindPFlag("renew-deadline", startcontrollerCmd.Flags().Lookup("renew-deadline"))
 	startcontrollerCmd.Flags().Duration("retry-period", controller.DefaultRetryPeriod, "RetryPeriod is the duration the LeaderElector clients should wait between tries of actions")
 	viper.BindPFlag("retry-period", startcontrollerCmd.Flags().Lookup("retry-period"))
-	startcontrollerCmd.Flags().String("targetd-scheme", "http", "scheme of the targetd connection, can be http or https")
-	viper.BindPFlag("targetd-scheme", startcontrollerCmd.Flags().Lookup("targetd-scheme"))
-	startcontrollerCmd.Flags().String("targetd-username", "admin", "username for the targetd connection")
-	viper.BindPFlag("targetd-username", startcontrollerCmd.Flags().Lookup("targetd-username"))
-	startcontrollerCmd.Flags().String("targetd-password", "", "password for the targetd connection")
-	viper.BindPFlag("targetd-password", startcontrollerCmd.Flags().Lookup("targetd-password"))
-	startcontrollerCmd.Flags().String("targetd-address", "localhost", "ip or dns of the targetd server")
-	viper.BindPFlag("targetd-address", startcontrollerCmd.Flags().Lookup("targetd-address"))
-	startcontrollerCmd.Flags().Int("targetd-port", 8811, "port on which targetd is listening")
-	viper.BindPFlag("targetd-port", startcontrollerCmd.Flags().Lookup("targetd-port"))
-	startcontrollerCmd.Flags().String("default-fs", "xfs", "filesystem to use when not specified")
-	viper.BindPFlag("default-fs", startcontrollerCmd.Flags().Lookup("default-fs"))
 	startcontrollerCmd.Flags().String("master", "", "Master URL")
 	viper.BindPFlag("master", startcontrollerCmd.Flags().Lookup("master"))
 	startcontrollerCmd.Flags().String("kubeconfig", "", "Absolute path to the kubeconfig")
 	viper.BindPFlag("kubeconfig", startcontrollerCmd.Flags().Lookup("kubeconfig"))
-	startcontrollerCmd.Flags().String("session-chap-credential-file-path", "/var/run/secrets/iscsi-provisioner/session-chap-credential.properties", "path where the credential for session chap authentication can be found")
-	viper.BindPFlag("session-chap-credential-file-path", startcontrollerCmd.Flags().Lookup("session-chap-credential-file-path"))
+
 
 	// Here you will define your flags and configuration settings.
 

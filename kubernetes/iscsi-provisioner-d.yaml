@@ -5,7 +5,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete","update"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
@@ -13,7 +13,7 @@ rules:
     resources: ["storageclasses"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
-    resources: ["events"]
+    resources: ["events","endpoints"]
     verbs: ["get", "list", "create", "update", "patch"]
 ---
 kind: ClusterRoleBinding
@@ -35,11 +35,14 @@ metadata:
   name: iscsi-provisioner
 ---
 kind: Deployment
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: iscsi-provisioner
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: iscsi-provisioner
   template:
     metadata:
       labels:
@@ -48,12 +51,12 @@ spec:
       containers:
         - name: iscsi-provisioner
           imagePullPolicy: Always
-          image: ogre0403/iscsi-provisioner:latest
-          args:
-            - "start"
-          env:
-            - name: PROVISIONER_NAME
-              value: iscsi-targetd
-            - name: TARGETD_ADDRESS
-              value: 192.168.1.111
+          image: ogre0403/iscsi-provisioner:ogre0403-6d72e38-dirty
+          command:
+            - /iscsi-provisioner
+            - start
+            - --logtostderr=true
+            - --v=2
+            - --provisioner-name=iscsi-target-api
+            - --target-api-address=192.168.1.111
       serviceAccount: iscsi-provisioner
