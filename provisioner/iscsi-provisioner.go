@@ -45,7 +45,7 @@ func NewiscsiProvisioner(addr string, port int) controller.Provisioner {
 }
 
 // Provision creates a storage asset and returns a PV object representing it.
-func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.PersistentVolume, error) {
 	if !util.AccessModesContainedInAll(p.getAccessModes(), options.PVC.Spec.AccessModes) {
 		return nil, fmt.Errorf("invalid AccessModes %v: only AccessModes %v are supported", options.PVC.Spec.AccessModes, p.getAccessModes())
 	}
@@ -62,7 +62,7 @@ func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.Pers
 			Labels: map[string]string{},
 		},
 		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
+			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			Capacity: v1.ResourceList{
 				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
@@ -71,11 +71,11 @@ func (p *iscsiProvisioner) Provision(options controller.VolumeOptions) (*v1.Pers
 			VolumeMode: options.PVC.Spec.VolumeMode,
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				ISCSI: &v1.ISCSIPersistentVolumeSource{
-					TargetPortal: options.Parameters["targetPortal"],
+					TargetPortal: options.StorageClass.Parameters["targetPortal"],
 					IQN:          iqn,
 					Lun:          1, // todo: support multiple LUNs
-					ReadOnly:     getReadOnly(options.Parameters["readonly"]),
-					FSType:       getFsType(options.Parameters["fsType"]),
+					ReadOnly:     getReadOnly(options.StorageClass.Parameters["readonly"]),
+					FSType:       getFsType(options.StorageClass.Parameters["fsType"]),
 					//ISCSIInterface: options.Parameters["iscsiInterface"],
 					//Portals:           portals, todo multipath
 					//DiscoveryCHAPAuth: getBool(options.Parameters["chapAuthDiscovery"]), // todo: support CHAP
@@ -96,9 +96,8 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 		TargetIQN: volume.Spec.ISCSI.IQN,
 	}
 	if err := p.iscsiClient.DeleteTarget(target); err != nil {
-		log.Warningf("Delete target %s fail: %s", target.TargetIQN, err.Error())
-		//todo: fix delete pv hang when return err
-		return nil
+		log.Errorf("Delete target %s fail: %s", target.TargetIQN, err.Error())
+		return err
 	}
 	log.V(2).Infof("target %s removed ", target.TargetIQN)
 
@@ -108,13 +107,12 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 	}
 
 	if err := p.iscsiClient.DeleteVolume(vol); err != nil {
-		log.Warningf("Remove volume %s/%s fail: %s", vol.Path, vol.Name, err.Error())
-		//todo: fix delete pv hang when return err
-		return nil
+		log.Errorf("Remove volume %s/%s fail: %s", vol.Path, vol.Name, err.Error())
+		return err
 	}
 	log.V(2).Infof("volume file <VOLUME_IMAGE_ROOT>/%s/%s is removed ", vol.Path, vol.Name)
 
-	log.V(2).Infof("volume %s deletion request completed: ", volume.GetName())
+	log.V(2).Infof("volume %s deletion request completed. ", volume.GetName())
 	return nil
 }
 
@@ -122,7 +120,7 @@ func (p *iscsiProvisioner) SupportsBlock() bool {
 	return true
 }
 
-func (p *iscsiProvisioner) createVolume(options controller.VolumeOptions) (string, error) {
+func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (string, error) {
 
 	target := fmt.Sprintf("iqn.%d-%02d.k8s.%s:%s",
 		time.Now().Year(), time.Now().Month(),
@@ -173,7 +171,7 @@ func getFsType(fsType string) string {
 	return fsType
 }
 
-func getSize(options controller.VolumeOptions) int64 {
+func getSize(options controller.ProvisionOptions) int64 {
 	q := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	return q.Value()
 }
@@ -195,8 +193,8 @@ type initiatorSetAuthArgs struct {
 }
 
 // Deprecated: aa
-func (p *iscsiProvisioner) getInitiators(options controller.VolumeOptions) []string {
-	return strings.Split(options.Parameters["initiators"], ",")
+func (p *iscsiProvisioner) getInitiators(options controller.ProvisionOptions) []string {
+	return strings.Split(options.StorageClass.Parameters["initiators"], ",")
 }
 
 // Deprecated: aa
