@@ -59,6 +59,8 @@ run:
 	--kubeconfig=/Users/ogre0403/.kube/config \
 	--provisioner-name=iscsi-target-api \
 	--target-api-address=140.110.30.57 \
+	--api-username=admin \
+	--api-password=password \
 	-v=2 --logtostderr=true
 
 build-in-docker:

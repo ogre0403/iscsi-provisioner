@@ -22,7 +22,6 @@ import (
 	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
 	"github.com/ogre0403/iscsi-target-api/pkg/client"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
@@ -37,10 +36,10 @@ type iscsiProvisioner struct {
 }
 
 // NewiscsiProvisioner creates new iscsi provisioner
-func NewiscsiProvisioner(addr string, port int) controller.Provisioner {
+func NewiscsiProvisioner(addr string, config *cfg.ServerCfg) controller.Provisioner {
 
 	return &iscsiProvisioner{
-		iscsiClient: client.NewClient(addr, port),
+		iscsiClient: client.NewClient(addr, config),
 	}
 }
 
@@ -174,41 +173,4 @@ func getFsType(fsType string) string {
 func getSize(options controller.ProvisionOptions) int64 {
 	q := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	return q.Value()
-}
-
-type chapSessionCredentials struct {
-	InUser      string `properties:"node.session.auth.username"`
-	InPassword  string `properties:"node.session.auth.password"`
-	OutUser     string `properties:"node.session.auth.username_in"`
-	OutPassword string `properties:"node.session.auth.password_in"`
-}
-
-//initiator_set_auth(initiator_wwn, in_user, in_pass, out_user, out_pass)
-type initiatorSetAuthArgs struct {
-	InitiatorWwn string `json:"initiator_wwn"`
-	InUser       string `json:"in_user"`
-	InPassword   string `json:"in_pass"`
-	OutUser      string `json:"out_user"`
-	OutPassword  string `json:"out_pass"`
-}
-
-// Deprecated: aa
-func (p *iscsiProvisioner) getInitiators(options controller.ProvisionOptions) []string {
-	return strings.Split(options.StorageClass.Parameters["initiators"], ",")
-}
-
-// Deprecated: aa
-func (p *iscsiProvisioner) setInitiatorAuth(initiator string, inUser string, inPassword string, outUser string, outPassword string) error {
-
-	//make arguments object
-	//args := initiatorSetAuthArgs{
-	//	InitiatorWwn: initiator,
-	//	InUser:       inUser,
-	//	InPassword:   inPassword,
-	//	OutUser:      outUser,
-	//	OutPassword:  outPassword,
-	//}
-	//call remote procedure with args
-	//err = client.Call("initiator_set_auth", args, nil)
-	return nil
 }

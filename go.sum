@@ -439,6 +439,10 @@ github.com/ogre0403/iscsi-target-api v0.0.0-20210111125031-9bf22d5ad1ff h1:kymHM
 github.com/ogre0403/iscsi-target-api v0.0.0-20210111125031-9bf22d5ad1ff/go.mod h1:YnV7kMsLqmGrcxfmi6HQcDUZ/FkIM/+5glx1zlEcMfc=
 github.com/ogre0403/iscsi-target-api v0.0.0-20210112015357-9489d62f8b6f h1:o8FemGAWmWH97gu4y5XRoZyXh9ANSDUlUqpdnSONJRs=
 github.com/ogre0403/iscsi-target-api v0.0.0-20210112015357-9489d62f8b6f/go.mod h1:YnV7kMsLqmGrcxfmi6HQcDUZ/FkIM/+5glx1zlEcMfc=
+github.com/ogre0403/iscsi-target-api v0.0.0-20210115034559-70cb02992ab0 h1:bR71mDETZouXRpGlmVLP9ohMpw/7anlZvDI+7plihLQ=
+github.com/ogre0403/iscsi-target-api v0.0.0-20210115034559-70cb02992ab0/go.mod h1:YnV7kMsLqmGrcxfmi6HQcDUZ/FkIM/+5glx1zlEcMfc=
+github.com/ogre0403/iscsi-target-api v0.0.0-20210115061131-92be1690f0a5 h1:ATZDlBSpZ410OazTEPxM9+Wbf0h8qeVhOe7188xxTxE=
+github.com/ogre0403/iscsi-target-api v0.0.0-20210115061131-92be1690f0a5/go.mod h1:YnV7kMsLqmGrcxfmi6HQcDUZ/FkIM/+5glx1zlEcMfc=
 github.com/oklog/oklog v0.3.2/go.mod h1:FCV+B7mhrz4o+ueLpx+KqkyXRGMWOYEvfiXtdGtbWGs=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=

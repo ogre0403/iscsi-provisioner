@@ -51,7 +51,7 @@ spec:
       containers:
         - name: iscsi-provisioner
           imagePullPolicy: Always
-          image: ogre0403/iscsi-provisioner:v0.1-alpha
+          image: ogre0403/iscsi-provisioner:ogre0403-c9eb81b-dirty
           command:
             - /iscsi-provisioner
             - start
@@ -59,4 +59,6 @@ spec:
             - --v=2
             - --provisioner-name=iscsi-target-api
             - --target-api-address=192.168.1.111
+            - --api-username=admin
+            - --api-password=password
       serviceAccount: iscsi-provisioner

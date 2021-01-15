@@ -20,6 +20,7 @@ import (
 	goflag "flag"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/ogre0403/iscsi-provisioner/provisioner"
+	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
 
 	log "github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -74,7 +75,13 @@ var startcontrollerCmd = &cobra.Command{
 		port := viper.GetInt("target-api-port")
 		log.V(2).Infof("target api addr: %s:%d", addr, port)
 
-		iscsiProvisioner := provisioner.NewiscsiProvisioner(addr, port)
+		sc := &cfg.ServerCfg{
+			Port:     port,
+			Username: viper.GetString("api-username"),
+			Password: viper.GetString("api-password"),
+		}
+
+		iscsiProvisioner := provisioner.NewiscsiProvisioner(addr, sc)
 		log.V(2).Infof("iscsi provisioner created")
 
 		pc := controller.NewProvisionController(kubernetesClientSet, viper.GetString("provisioner-name"), iscsiProvisioner, serverVersion.GitVersion, controller.Threadiness(1))
@@ -103,11 +110,10 @@ func init() {
 	viper.BindPFlag("target-api-port", startcontrollerCmd.Flags().Lookup("target-api-port"))
 	startcontrollerCmd.Flags().String("default-fs", "xfs", "filesystem to use when not specified")
 	viper.BindPFlag("default-fs", startcontrollerCmd.Flags().Lookup("default-fs"))
-
-	//startcontrollerCmd.Flags().String("targetd-username", "admin", "username for the targetd connection")
-	//viper.BindPFlag("targetd-username", startcontrollerCmd.Flags().Lookup("targetd-username"))
-	//startcontrollerCmd.Flags().String("targetd-password", "", "password for the targetd connection")
-	//viper.BindPFlag("targetd-password", startcontrollerCmd.Flags().Lookup("targetd-password"))
+	startcontrollerCmd.Flags().String("api-username", "admin", "username for the iscsi-target-api")
+	viper.BindPFlag("api-username", startcontrollerCmd.Flags().Lookup("api-username"))
+	startcontrollerCmd.Flags().String("api-password", "", "password for the iscsi-target-api")
+	viper.BindPFlag("api-password", startcontrollerCmd.Flags().Lookup("api-password"))
 	//startcontrollerCmd.Flags().String("session-chap-credential-file-path", "/var/run/secrets/iscsi-provisioner/session-chap-credential.properties", "path where the credential for session chap authentication can be found")
 	//viper.BindPFlag("session-chap-credential-file-path", startcontrollerCmd.Flags().Lookup("session-chap-credential-file-path"))
 
@@ -128,7 +134,6 @@ func init() {
 	viper.BindPFlag("master", startcontrollerCmd.Flags().Lookup("master"))
 	startcontrollerCmd.Flags().String("kubeconfig", "", "Absolute path to the kubeconfig")
 	viper.BindPFlag("kubeconfig", startcontrollerCmd.Flags().Lookup("kubeconfig"))
-
 
 	// Here you will define your flags and configuration settings.
 
