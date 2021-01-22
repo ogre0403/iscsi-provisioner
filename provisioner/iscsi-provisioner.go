@@ -19,6 +19,7 @@ package provisioner
 import (
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/ogre0403/go-lvm"
 	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
 	"github.com/ogre0403/iscsi-target-api/pkg/client"
 	"strconv"
@@ -29,6 +30,13 @@ import (
 	"github.com/spf13/viper"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	VolumeGroup    = "volumeGroup"
+	VolumeType     = "volumeType"
+	AnnotationThin = "iscsi-provisioner/thin"
+	TargetPortal   = "targetPortal"
 )
 
 type iscsiProvisioner struct {
@@ -59,6 +67,10 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   options.PVName,
 			Labels: map[string]string{},
+			Annotations: map[string]string{
+				VolumeType:  options.StorageClass.Parameters[VolumeType],
+				VolumeGroup: options.StorageClass.Parameters[VolumeGroup],
+			},
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: *options.StorageClass.ReclaimPolicy,
@@ -70,7 +82,7 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 			VolumeMode: options.PVC.Spec.VolumeMode,
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				ISCSI: &v1.ISCSIPersistentVolumeSource{
-					TargetPortal: options.StorageClass.Parameters["targetPortal"],
+					TargetPortal: options.StorageClass.Parameters[TargetPortal],
 					IQN:          iqn,
 					Lun:          1, // todo: support multiple LUNs
 					ReadOnly:     getReadOnly(options.StorageClass.Parameters["readonly"]),
@@ -101,8 +113,9 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 	log.V(2).Infof("target %s removed ", target.TargetIQN)
 
 	vol := &cfg.VolumeCfg{
-		Path: volume.Spec.ClaimRef.Namespace,
-		Name: volume.Name,
+		Type:  volume.Annotations[VolumeType],
+		Group: volume.Annotations[VolumeGroup],
+		Name:  volume.Name,
 	}
 
 	if err := p.iscsiClient.DeleteVolume(vol); err != nil {
@@ -126,10 +139,22 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 		options.PVC.Namespace, options.PVC.Name)
 
 	v := &cfg.VolumeCfg{
-		Size: fmt.Sprintf("%dm", getSize(options)/1024/1024),
-		Path: options.PVC.Namespace,
-		Name: options.PVName,
+		Type:  options.StorageClass.Parameters[VolumeType],
+		Group: options.StorageClass.Parameters[VolumeGroup],
+		Name:  options.PVName,
+		Size:  uint64(getSize(options)),
+		Unit:  lvm.B,
 	}
+
+	thinPool := options.StorageClass.Parameters["thinPool"]
+
+	isThinValue, isThinFound := options.PVC.Annotations[AnnotationThin]
+	isthinvalue, _ := strconv.ParseBool(isThinValue)
+	if isThinFound && isthinvalue {
+		v.ThinProvision = true
+		v.ThinPool = thinPool
+	}
+
 	if err := p.iscsiClient.CreateVolume(v); err != nil {
 		return "", err
 	}
