@@ -17,6 +17,7 @@ limitations under the License.
 package provisioner
 
 import (
+	"errors"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/ogre0403/go-lvm"
@@ -35,8 +36,9 @@ import (
 const (
 	VolumeGroup    = "volumeGroup"
 	VolumeType     = "volumeType"
-	AnnotationThin = "iscsi-provisioner/thin"
 	TargetPortal   = "targetPortal"
+	ThinPool       = "thinPool"
+	AnnotationThin = "iscsi-provisioner/thin"
 )
 
 type iscsiProvisioner struct {
@@ -138,19 +140,27 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 		time.Now().Year(), time.Now().Month(),
 		options.PVC.Namespace, options.PVC.Name)
 
+	vType := options.StorageClass.Parameters[VolumeType]
 	v := &cfg.VolumeCfg{
-		Type:  options.StorageClass.Parameters[VolumeType],
+		Type:  vType,
 		Group: options.StorageClass.Parameters[VolumeGroup],
 		Name:  options.PVName,
 		Size:  uint64(getSize(options)),
 		Unit:  lvm.B,
 	}
 
-	thinPool := options.StorageClass.Parameters["thinPool"]
-
+	thinPool, isPoolFound := options.StorageClass.Parameters[ThinPool]
 	isThinValue, isThinFound := options.PVC.Annotations[AnnotationThin]
 	isthinvalue, _ := strconv.ParseBool(isThinValue)
+
 	if isThinFound && isthinvalue {
+
+		if vType == cfg.VolumeTypeLVM && (!isPoolFound || thinPool == "") {
+			return "", errors.New(fmt.Sprintf(
+				"LVM volume %s desire thin provision, but thin pool name is not defined in parameters of storage class %s",
+				options.PVName, options.StorageClass.Name))
+		}
+
 		v.ThinProvision = true
 		v.ThinPool = thinPool
 	}

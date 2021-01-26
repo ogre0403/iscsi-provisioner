@@ -65,9 +65,8 @@ run:
 
 build-in-docker:
 	rm -rf bin/${PROJ_NAME}
-	CGO_ENABLED=0 GOOS=linux \
+	CGO_ENABLED=1 GOOS=linux \
 	go build -mod=vendor \
-	-a -ldflags '-extldflags "-static"' \
 	-o bin/${PROJ_NAME}
 
 build-img:

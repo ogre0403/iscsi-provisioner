@@ -8,9 +8,9 @@ parameters:
   targetPortal: 192.168.1.111:3260
   # MUST follow iscsi-target-api configuration
   volumeGroup: "vg-0"
+  volumeType: "lvm"
   # thinPool is required if thinProvision is true, and volumeType is LVM
   thinPool: "pool0"
-  volumeType: "lvm"
 
   # if you are using multipath, you can specify additional IPs here, default empty
   # portals: 192.168.99.101:3260,192.168.99.102:3260

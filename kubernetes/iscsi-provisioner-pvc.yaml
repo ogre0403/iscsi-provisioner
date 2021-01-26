@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: myclaim
   annotations:
-    iscsi-provisioner/thin: "true"
+    iscsi-provisioner/thin: "false"
 spec:
   storageClassName: iscsi-target-api-sc
   accessModes:
