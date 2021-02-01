@@ -20,9 +20,8 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/golang/glog"
-	"github.com/ogre0403/go-lvm"
-	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
-	"github.com/ogre0403/iscsi-target-api/pkg/client"
+	"github.com/ogre0403/iscsi-target-client/pkg/client"
+	"github.com/ogre0403/iscsi-target-client/pkg/model"
 	"strconv"
 	"time"
 
@@ -40,13 +39,17 @@ const (
 	ThinPool       = "thinPool"
 	AnnotationThin = "iscsi-provisioner/thin"
 )
+const (
+	VolumeTypeLVM    = "lvm"
+	VolumeTypeTGTIMG = "tgtimg"
+)
 
 type iscsiProvisioner struct {
 	iscsiClient *client.Client
 }
 
 // NewiscsiProvisioner creates new iscsi provisioner
-func NewiscsiProvisioner(addr string, config *cfg.ServerCfg) controller.Provisioner {
+func NewiscsiProvisioner(addr string, config *model.ServerCfg) controller.Provisioner {
 
 	return &iscsiProvisioner{
 		iscsiClient: client.NewClient(addr, config),
@@ -105,7 +108,7 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 	log.V(2).Infof("new volume deletion request received for pv: %s", volume.GetName())
 
-	target := &cfg.TargetCfg{
+	target := &model.Target{
 		TargetIQN: volume.Spec.ISCSI.IQN,
 	}
 	if err := p.iscsiClient.DeleteTarget(target); err != nil {
@@ -114,17 +117,17 @@ func (p *iscsiProvisioner) Delete(volume *v1.PersistentVolume) error {
 	}
 	log.V(2).Infof("target %s removed ", target.TargetIQN)
 
-	vol := &cfg.VolumeCfg{
+	vol := &model.Volume{
 		Type:  volume.Annotations[VolumeType],
 		Group: volume.Annotations[VolumeGroup],
 		Name:  volume.Name,
 	}
 
 	if err := p.iscsiClient.DeleteVolume(vol); err != nil {
-		log.Errorf("Remove volume %s/%s fail: %s", vol.Path, vol.Name, err.Error())
+		log.Errorf("Remove volume %s/%s fail: %s", vol.Group, vol.Name, err.Error())
 		return err
 	}
-	log.V(2).Infof("volume file <VOLUME_IMAGE_ROOT>/%s/%s is removed ", vol.Path, vol.Name)
+	log.V(2).Infof("volume file <VOLUME_IMAGE_ROOT>/%s/%s is removed ", vol.Group, vol.Name)
 
 	log.V(2).Infof("volume %s deletion request completed. ", volume.GetName())
 	return nil
@@ -141,12 +144,12 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 		options.PVC.Namespace, options.PVC.Name)
 
 	vType := options.StorageClass.Parameters[VolumeType]
-	v := &cfg.VolumeCfg{
+	v := &model.Volume{
 		Type:  vType,
 		Group: options.StorageClass.Parameters[VolumeGroup],
 		Name:  options.PVName,
 		Size:  uint64(getSize(options)),
-		Unit:  lvm.B,
+		Unit:  "B",
 	}
 
 	thinPool, isPoolFound := options.StorageClass.Parameters[ThinPool]
@@ -155,7 +158,7 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 
 	if isThinFound && isthinvalue {
 
-		if vType == cfg.VolumeTypeLVM && (!isPoolFound || thinPool == "") {
+		if vType == VolumeTypeLVM && (!isPoolFound || thinPool == "") {
 			return "", errors.New(fmt.Sprintf(
 				"LVM volume %s desire thin provision, but thin pool name is not defined in parameters of storage class %s",
 				options.PVName, options.StorageClass.Name))
@@ -169,7 +172,7 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 		return "", err
 	}
 
-	lun := &cfg.LunCfg{
+	lun := &model.Lun{
 		TargetIQN: target,
 		Volume:    v,
 	}

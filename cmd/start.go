@@ -20,7 +20,7 @@ import (
 	goflag "flag"
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
 	"github.com/ogre0403/iscsi-provisioner/provisioner"
-	"github.com/ogre0403/iscsi-target-api/pkg/cfg"
+	"github.com/ogre0403/iscsi-target-client/pkg/model"
 
 	log "github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -75,7 +75,7 @@ var startcontrollerCmd = &cobra.Command{
 		port := viper.GetInt("target-api-port")
 		log.V(2).Infof("target api addr: %s:%d", addr, port)
 
-		sc := &cfg.ServerCfg{
+		sc := &model.ServerCfg{
 			Port:     port,
 			Username: viper.GetString("api-username"),
 			Password: viper.GetString("api-password"),
