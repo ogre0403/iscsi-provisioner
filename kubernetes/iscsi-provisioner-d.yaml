@@ -51,7 +51,7 @@ spec:
       containers:
         - name: iscsi-provisioner
           imagePullPolicy: Always
-          image: ogre0403/iscsi-provisioner:lvm-dirty
+          image: ogre0403/iscsi-provisioner:v0.1.2-alpha
           command:
             - /iscsi-provisioner
             - start

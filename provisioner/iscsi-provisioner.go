@@ -41,7 +41,6 @@ const (
 )
 const (
 	VolumeTypeLVM    = "lvm"
-	VolumeTypeTGTIMG = "tgtimg"
 )
 
 type iscsiProvisioner struct {
