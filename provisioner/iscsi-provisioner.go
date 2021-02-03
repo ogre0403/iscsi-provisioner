@@ -23,6 +23,7 @@ import (
 	"github.com/ogre0403/iscsi-target-client/pkg/client"
 	"github.com/ogre0403/iscsi-target-client/pkg/model"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/sig-storage-lib-external-provisioner/controller"
@@ -35,12 +36,11 @@ import (
 const (
 	VolumeGroup    = "volumeGroup"
 	VolumeType     = "volumeType"
+	ACL            = "acl"
 	TargetPortal   = "targetPortal"
 	ThinPool       = "thinPool"
 	AnnotationThin = "iscsi-provisioner/thin"
-)
-const (
-	VolumeTypeLVM    = "lvm"
+	VolumeTypeLVM  = "lvm"
 )
 
 type iscsiProvisioner struct {
@@ -67,6 +67,11 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 		return nil, err
 	}
 
+	var portals []string
+	if len(options.StorageClass.Parameters["portals"]) > 0 {
+		portals = strings.Split(options.StorageClass.Parameters["portals"], ",")
+	}
+
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   options.PVName,
@@ -91,8 +96,7 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 					Lun:          1, // todo: support multiple LUNs
 					ReadOnly:     getReadOnly(options.StorageClass.Parameters["readonly"]),
 					FSType:       getFsType(options.StorageClass.Parameters["fsType"]),
-					//ISCSIInterface: options.Parameters["iscsiInterface"],
-					//Portals:           portals, todo multipath
+					Portals:      portals,
 					//DiscoveryCHAPAuth: getBool(options.Parameters["chapAuthDiscovery"]), // todo: support CHAP
 					//SessionCHAPAuth:   getBool(options.Parameters["chapAuthSession"]), // todo: support CHAP
 					//SecretRef:         getSecretRef(getBool(options.Parameters["chapAuthDiscovery"]), getBool(options.Parameters["chapAuthSession"]), &v1.SecretReference{Name: viper.GetString("provisioner-name") + "-chap-secret"}), // todo: support CHAP
@@ -174,6 +178,11 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 	lun := &model.Lun{
 		TargetIQN: target,
 		Volume:    v,
+	}
+	if len(options.StorageClass.Parameters[ACL]) > 0 {
+		lun.AclIpList = strings.Split(options.StorageClass.Parameters[ACL], ",")
+	} else {
+		lun.AclIpList = []string{}
 	}
 
 	if err := p.iscsiClient.AttachLun(lun); err != nil {

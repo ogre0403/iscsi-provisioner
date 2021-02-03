@@ -194,6 +194,8 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
 github.com/ogre0403/iscsi-target-client v0.0.0-20210201014853-14dad9b659c7 h1:ZHqcuWjnTfRIbh9+/TGyumhxg4bJoccQFRJmRz4PxJc=
 github.com/ogre0403/iscsi-target-client v0.0.0-20210201014853-14dad9b659c7/go.mod h1:oyCTG4B5ah+fs9Ya4DddbjR/N9tKDyp2hPblk9/hDrc=
+github.com/ogre0403/iscsi-target-client v0.0.0-20210202052212-a75b3238aa26 h1:R+RYCuBBgaEFUd+QU8/c1eNIRaKz204hWHJlF+BQ6qo=
+github.com/ogre0403/iscsi-target-client v0.0.0-20210202052212-a75b3238aa26/go.mod h1:oyCTG4B5ah+fs9Ya4DddbjR/N9tKDyp2hPblk9/hDrc=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
