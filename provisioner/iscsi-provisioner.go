@@ -40,6 +40,7 @@ const (
 	TargetPortal   = "targetPortal"
 	ThinPool       = "thinPool"
 	AnnotationThin = "iscsi-provisioner/thin"
+	AnnotationChap = "iscsi-provisioner/chap"
 	VolumeTypeLVM  = "lvm"
 )
 
@@ -91,15 +92,14 @@ func (p *iscsiProvisioner) Provision(options controller.ProvisionOptions) (*v1.P
 			VolumeMode: options.PVC.Spec.VolumeMode,
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				ISCSI: &v1.ISCSIPersistentVolumeSource{
-					TargetPortal: options.StorageClass.Parameters[TargetPortal],
-					IQN:          iqn,
-					Lun:          1, // todo: support multiple LUNs
-					ReadOnly:     getReadOnly(options.StorageClass.Parameters["readonly"]),
-					FSType:       getFsType(options.StorageClass.Parameters["fsType"]),
-					Portals:      portals,
-					//DiscoveryCHAPAuth: getBool(options.Parameters["chapAuthDiscovery"]), // todo: support CHAP
-					//SessionCHAPAuth:   getBool(options.Parameters["chapAuthSession"]), // todo: support CHAP
-					//SecretRef:         getSecretRef(getBool(options.Parameters["chapAuthDiscovery"]), getBool(options.Parameters["chapAuthSession"]), &v1.SecretReference{Name: viper.GetString("provisioner-name") + "-chap-secret"}), // todo: support CHAP
+					TargetPortal:    options.StorageClass.Parameters[TargetPortal],
+					IQN:             iqn,
+					Lun:             1, // todo: support multiple LUNs
+					ReadOnly:        getReadOnly(options.StorageClass.Parameters["readonly"]),
+					FSType:          getFsType(options.StorageClass.Parameters["fsType"]),
+					Portals:         portals,
+					SessionCHAPAuth: getBool(options.PVC.Annotations[AnnotationChap]),
+					SecretRef:       getSecretRef(getBool(options.PVC.Annotations[AnnotationChap])),
 				},
 			},
 		},
@@ -176,8 +176,9 @@ func (p *iscsiProvisioner) createVolume(options controller.ProvisionOptions) (st
 	}
 
 	lun := &model.Lun{
-		TargetIQN: target,
-		Volume:    v,
+		TargetIQN:  target,
+		Volume:     v,
+		EnableChap: getBool(options.PVC.Annotations[AnnotationChap]),
 	}
 	if len(options.StorageClass.Parameters[ACL]) > 0 {
 		lun.AclIpList = strings.Split(options.StorageClass.Parameters[ACL], ",")
@@ -219,4 +220,19 @@ func getFsType(fsType string) string {
 func getSize(options controller.ProvisionOptions) int64 {
 	q := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	return q.Value()
+}
+
+func getBool(value string) bool {
+	res, err := strconv.ParseBool(value)
+	if err != nil {
+		return false
+	}
+	return res
+}
+
+func getSecretRef(session bool) *v1.SecretReference {
+	if session {
+		return &v1.SecretReference{Name: viper.GetString("provisioner-name") + "-chap-secret"}
+	}
+	return nil
 }

@@ -6,7 +6,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/kubernetes-sigs/sig-storage-lib-external-provisioner v4.0.0+incompatible
-	github.com/ogre0403/iscsi-target-client v0.0.0-20210202052212-a75b3238aa26
+	github.com/ogre0403/iscsi-target-client v0.0.0-20210204072402-2ac33ea3d0a3
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1

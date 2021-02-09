@@ -4,10 +4,11 @@ metadata:
   name: myclaim
   annotations:
     iscsi-provisioner/thin: "false"
+#    iscsi-provisioner/chap: "false"
 spec:
   storageClassName: iscsi-target-api-sc
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 17Mi
+      storage: 100Mi
