@@ -59,15 +59,41 @@ oc create -f https://raw.githubusercontent.com/kubernetes-incubator/external-sto
 ### Create a storage class
 
 storage classes should look like the following
-```
+```yaml
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
   name: iscsi-target-api-sc
 provisioner: iscsi-target-api
 parameters:
+  # REQUIRED: this id where the iscsi server is running
   targetPortal: 192.168.1.111:3260
+  # REQUIRED: MUST follow iscsi-target-api configuration
+  volumeGroup: "vg-0"
+  volumeType: "lvm"
+  # OPTIONAL: thinPool is required if thinProvision is true, and volumeType is LVM
+  thinPool: "pool0"
+```
 
+### Create a pvc
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+  annotations:
+    # if you need thin provision volume
+    iscsi-provisioner/thin: "true"
+    # if you want to use CHAP authentication
+    iscsi-provisioner/chap: "true"
+spec:
+  storageClassName: iscsi-target-api-sc
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Mi
 ```
 
 ### Test iscsi provisioner
@@ -94,9 +120,7 @@ $ kubectl create -f https://raw.githubusercontent.com/ogre0403/iscsi-provisioner
 
 ## on iSCSI authentication
 
-If you enable iSCSI CHAP-based authentication, the ansible installer will set the target configuration consinstently and also configure the storage class.
-However at provisioning time the provisioner will not setup the chap secret. Having the permissions to setup a secret in any namespace would make the provisioner too powerful and insecure.
-So, it is up to the project administrator to setup the secret.
-The name of the expected secret name will be `<provisioner-name>-chap-secret` 
-An example of the secret format can be found [here](./openshift/iscsi-chap-secret.yaml)
+If you enable iSCSI CHAP-based authentication in PVC annotation, a secret contain user name and password must create first. 
+The name of the expected secret name will be `<provisioner-name>-chap-secret`. An example of the secret format can be found [here](./kubernetes/iscsi-chap-secret.yaml)
+
 
